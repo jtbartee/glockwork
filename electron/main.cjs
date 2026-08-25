@@ -7,7 +7,10 @@ const START_URL = process.env.ELECTRON_START_URL;
 // Only these permissions are ever relevant to a browser-based synthesizer: MIDI access for
 // external controllers. Everything else (camera, mic, geolocation, notifications, clipboard
 // read, etc.) is denied outright.
-const ALLOWED_PERMISSIONS = new Set(["midi", "midi-sysex"]);
+// Electron's actual permission identifiers are camelCase ("midiSysex", not "midi-sysex") —
+// Chromium asks for "midiSysex" for Web MIDI access in general, even when the page requests
+// {sysex: false}, so both must be allowed or requestMIDIAccess() is rejected outright.
+const ALLOWED_PERMISSIONS = new Set(["midi", "midiSysex"]);
 
 function configureSession() {
   const ses = session.defaultSession;
