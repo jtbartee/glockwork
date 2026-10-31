@@ -1,4 +1,4 @@
-import type { AppStore } from "../../state/store";
+import type { ControlHost } from "./host";
 import { h } from "../dom";
 
 export interface SwitchOptions {
@@ -15,7 +15,7 @@ export class Switch {
   private button: HTMLElement;
   private value: boolean;
 
-  constructor(private store: AppStore, private opts: SwitchOptions) {
+  constructor(private store: ControlHost, private opts: SwitchOptions) {
     this.value = this.readValue();
     this.button = h("button", { class: "switch-button", type: "button" }, this.stateLabel());
     this.el = h("div", { class: "switch-control" }, h("div", { class: "switch-label" }, opts.label), this.button);

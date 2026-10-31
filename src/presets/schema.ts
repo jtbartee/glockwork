@@ -52,7 +52,7 @@ function oneOf<T extends string>(value: unknown, options: readonly T[], fallback
 
 const MATERIALS: MaterialId[] = ["wood", "rosewood", "synthetic", "metalSoft", "metalBright", "steel", "bronze", "glass", "digital"];
 
-function sanitizeEngine(raw: unknown, fallback: EngineParams): EngineParams {
+export function sanitizeEngine(raw: unknown, fallback: EngineParams): EngineParams {
   const r = (raw ?? {}) as Record<string, unknown>;
   const instrumentId = INSTRUMENTS.some((i) => i.id === r.instrumentId) ? (r.instrumentId as string) : fallback.instrumentId;
   const strike = (r.strike ?? {}) as Record<string, unknown>;

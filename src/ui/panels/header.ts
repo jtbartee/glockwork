@@ -4,7 +4,7 @@ import { Knob } from "../components/Knob";
 import { PresetModal } from "./presetModal";
 import * as fmt from "../format";
 
-export function buildHeader(store: AppStore): HTMLElement {
+export function buildHeader(store: AppStore, tabs?: HTMLElement): HTMLElement {
   const modal = new PresetModal(store);
 
   const presetSelect = h("select", { class: "preset-select" }) as HTMLSelectElement;
@@ -78,9 +78,12 @@ export function buildHeader(store: AppStore): HTMLElement {
   return h(
     "header",
     { class: "app-header" },
-    h("div", { class: "brand" }, h("span", { class: "brand-mark" }, "GLOCKWORK"), h("span", { class: "brand-sub" }, "Orff & Mallet Lab")),
-    h("div", { class: "header-group" }, presetSelect, presetLabel, presetsBtn, saveBtn),
-    h("div", { class: "header-group" }, randomizeMenu),
+    // the workspace tabs sit under the wordmark, inside the row height the Master knob already sets
+    tabs
+      ? h("div", { class: "brand-stack" }, h("div", { class: "brand" }, h("span", { class: "brand-mark" }, "GLOCKWORK"), h("span", { class: "brand-sub" }, "Orff & Mallet Lab")), tabs)
+      : h("div", { class: "brand" }, h("span", { class: "brand-mark" }, "GLOCKWORK"), h("span", { class: "brand-sub" }, "Orff & Mallet Lab")),
+    h("div", { class: "header-group lab-only" }, presetSelect, presetLabel, presetsBtn, saveBtn),
+    h("div", { class: "header-group lab-only" }, randomizeMenu),
     h("div", { class: "header-group" }, led, h("span", { class: "hint" }, "MIDI")),
     h("div", { class: "header-group" }, h("div", { class: "meter" }, meterFill), volumeKnob.el),
   );

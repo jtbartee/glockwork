@@ -12,6 +12,28 @@ No samples, no sample libraries, nothing to download but code.
 
 ---
 
+## New: the Ensemble Composer
+
+Switch to the **ENSEMBLE** workspace (tabs under the wordmark) to compose and perform complete
+pieces for up to 16 independently modelled Orff and mallet instruments. GLOCKWORK writes a
+musical plan first — form, sections, question-and-answer phrases, harmony, themes, who plays where —
+and then writes every part with real elemental-music techniques: borduns, shifting chords,
+interlocking ostinatos, echo, call-and-response, canon, hocket, layered entrances and planned
+silence. Six styles (Traditional Orff, Evolving Minimalism, Polyrhythmic Ensemble, Ambient,
+Cinematic Mallets, Experimental) change the algorithms themselves.
+
+- **Finished arrangement** (16–256 bars or a duration) or an **endless performance** that keeps
+  developing — and can be captured as an arrangement at any time.
+- Seeds reproduce pieces exactly; **locks** (harmony, melody, rhythm, arrangement, instruments, any
+  track) keep what you like while the rest regenerates; per-track **regenerate** and **vary**.
+- Arrangement timeline, multitrack **piano roll** (every generated note is editable), per-track sound
+  design with the Sound Lab's own instrument panel.
+- **MIDI** (one track per instrument), **WAV** mix, **WAV stems** (ZIP), lossless **project files**.
+
+Architecture, techniques, verification and the APERTURE lineage: [docs/ENSEMBLE.md](docs/ENSEMBLE.md).
+
+---
+
 ## What is this
 
 Glockwork is not an emulation of one specific instrument. It's a sound laboratory built
@@ -220,17 +242,22 @@ permission pre-granted) — it works fully offline once installed.
 npm install
 npm run dev            # Vite dev server at http://localhost:5173
 npm run electron:dev   # Vite dev server + Electron window pointed at it, together
+npm test               # unit tests (theory, composition, locks, exports)
+npm run build && npm run e2e   # browser suite on the built app (needs Chrome for Testing)
 ```
 
 ### Project structure
 
 ```
 src/
+  theory/       reusable music theory (scales, meters, chords, progressions, motifs) — from APERTURE
+  compose/      the ensemble composer: form, harmony, themes, orchestration, part writers, endless mode
+  ensemble/     multitrack mixer, transport, offline render, WAV/MIDI/ZIP, project files, workspace state
   audio/        engine, voice synthesis, instrument models, effects, arpeggiator, scales
   midi/         Web MIDI wrapper + MIDI clock BPM tracking
   presets/      preset schema/validation, factory presets, preset manager (localStorage)
   state/        the AppStore that wires audio/MIDI/presets together for the UI
-  ui/           vanilla-TS UI components and panels (no framework)
+  ui/           vanilla-TS UI components and panels (no framework); ui/ensemble/ is the ENSEMBLE workspace
   utils/        small shared helpers (math, note names, events)
 electron/
   main.cjs      Electron main process (security config, window creation)

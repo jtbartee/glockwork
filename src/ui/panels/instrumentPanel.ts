@@ -1,4 +1,4 @@
-import type { AppStore } from "../../state/store";
+import type { InstrumentHost } from "../components/host";
 import { INSTRUMENTS, MATERIAL_LABELS } from "../../audio/instruments";
 import { h } from "../dom";
 import { knobGrid } from "../components/knobRow";
@@ -8,7 +8,7 @@ import * as fmt from "../format";
 
 const CATEGORY_LABEL: Record<string, string> = { orff: "Orff Instruments", mallet: "Mallet & Percussion", experimental: "Experimental" };
 
-export function buildInstrumentPanel(store: AppStore): HTMLElement {
+export function buildInstrumentPanel(store: InstrumentHost): HTMLElement {
   const select = h("select", { class: "select-control", style: "min-width:220px;font-size:0.85rem;" }) as HTMLSelectElement;
   for (const cat of ["orff", "mallet", "experimental"]) {
     const group = h("optgroup", { label: CATEGORY_LABEL[cat] });
@@ -104,7 +104,7 @@ export function buildInstrumentPanel(store: AppStore): HTMLElement {
   );
 }
 
-function describeInstrument(store: AppStore): string {
+function describeInstrument(store: InstrumentHost): string {
   const inst = INSTRUMENTS.find((i) => i.id === store.getEngineParams().instrumentId);
   return inst?.description ?? "";
 }

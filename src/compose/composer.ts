@@ -296,7 +296,9 @@ export interface ComposeResult {
 export function resolvePlanBasics(settings: ComposeSettings, seeds: Seeds, locks: Locks, prev: Composition | null, profile: Profile) {
   const scale: ScaleId = settings.scale !== "auto" ? settings.scale : locks.harmony && prev ? prev.plan.scale : weighted(profile.scales, rng(hash32(`${seeds.harmony}:scale`)));
   const key = settings.key !== "auto" ? settings.key : locks.harmony && prev && prev.plan.scale === scale ? prev.plan.key : autoKey(profile, scale, rng(hash32(`${seeds.harmony}:key`)));
-  const meter: MeterId = settings.meter !== "auto" ? settings.meter : prev && (locks.rhythm || locks.arrangement) ? prev.plan.meter : weighted(profile.meters, rng(hash32(`${seeds.rhythm}:meter`)));
+  // a chord timeline, a melody and a rhythm are all laid out in bars: any of those locks holds the meter
+  const holdsMeter = locks.rhythm || locks.arrangement || locks.harmony || locks.melody;
+  const meter: MeterId = settings.meter !== "auto" ? settings.meter : prev && holdsMeter ? prev.plan.meter : weighted(profile.meters, rng(hash32(`${seeds.rhythm}:meter`)));
   const tr = rng(hash32(`${seeds.rhythm}:tempo`));
   const bpm = typeof settings.bpm === "number" ? clamp(settings.bpm, 30, 240) : prev && locks.rhythm ? prev.plan.bpm : Math.round(profile.tempo[0] + tr() * (profile.tempo[1] - profile.tempo[0]));
   const bb = barBeats(meter);

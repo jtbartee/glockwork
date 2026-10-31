@@ -1,4 +1,4 @@
-import type { AppStore } from "../../state/store";
+import type { ControlHost } from "./host";
 import { clamp } from "../../utils/math";
 import { h } from "../dom";
 
@@ -23,7 +23,7 @@ export class Knob {
   private valueEl: HTMLElement;
   private value: number;
 
-  constructor(private store: AppStore, private opts: KnobOptions) {
+  constructor(private store: ControlHost, private opts: KnobOptions) {
     this.value = this.readValue();
     this.dial = h("div", { class: "knob-dial" }, h("div", { class: "knob-pointer" }));
     this.valueEl = h("div", { class: "knob-value" }, this.formatted());

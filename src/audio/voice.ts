@@ -6,7 +6,7 @@ import { clamp, lerp, midiToFreq, centsToRatio, semitonesToRatio } from "../util
 const MAX_PARTIALS = 7;
 
 export interface VoiceOptions {
-  ctx: AudioContext;
+  ctx: BaseAudioContext;
   destination: AudioNode;
   instrument: InstrumentModel;
   params: EngineParams;
@@ -19,6 +19,13 @@ export interface VoiceOptions {
   /** Precise AudioContext time to start the strike at. Defaults to ctx.currentTime, but the
    * arpeggiator schedules ahead of time for sample-accurate rhythm. */
   startTime?: number;
+  /** How many decay times a voice lives for (4 ≈ −140 dB; the ensemble uses ~2.2 ≈ −76 dB). */
+  tailFactor?: number;
+  /** "timer" (default) cleans up with a wall-clock timeout; "ended" cleans up when the
+   * oscillators end, which also works in an OfflineAudioContext and for far-future starts. */
+  cleanup?: "timer" | "ended";
+  /** random source for the strike-noise slice (seeded in offline renders) */
+  rand?: () => number;
 }
 
 /** One struck mallet bar: additive partials + a resonant "body" formant + a short noise
@@ -27,7 +34,7 @@ export interface VoiceOptions {
 export class MalletVoice {
   readonly note: number;
   readonly startedAt: number;
-  private ctx: AudioContext;
+  private ctx: BaseAudioContext;
   private voiceGain: GainNode;
   private panner: StereoPannerNode;
   private oscillators: OscillatorNode[] = [];
@@ -37,11 +44,17 @@ export class MalletVoice {
   private onEnded?: () => void;
   private cleaned = false;
   private cleanupTimer = 0;
+  private cleanupMode: "timer" | "ended";
+  private attackEnd = 0;
+  private stopTime = Infinity;
 
   constructor(opts: VoiceOptions) {
     const { ctx, destination, instrument, params, note, velocity, pitchBendSemitones, hardnessBias, panBase } = opts;
     this.onEnded = opts.onEnded;
     this.ctx = ctx;
+    this.cleanupMode = opts.cleanup ?? "timer";
+    const tailFactor = opts.tailFactor ?? 4;
+    const rand = opts.rand ?? Math.random;
     const now = opts.startTime ?? ctx.currentTime;
     this.startedAt = now;
     this.note = note;
@@ -154,7 +167,7 @@ export class MalletVoice {
       osc.connect(gainNode);
       gainNode.connect(partialBus);
 
-      const tail = atk + decayTime * 4 + 0.15;
+      const tail = atk + decayTime * tailFactor + 0.15;
       if (tail > longestTail) longestTail = tail;
       osc.start(now);
       this.oscillators.push(osc);
@@ -166,7 +179,7 @@ export class MalletVoice {
       noiseSrc.buffer = getSharedNoiseBuffer(ctx);
       const buf = noiseSrc.buffer;
       const burstDuration = lerp(0.09, 0.008, hardness * 0.6 + params.strike.attack * 0.4);
-      const offset = Math.random() * Math.max(0.01, buf.duration - burstDuration - 0.05);
+      const offset = rand() * Math.max(0.01, buf.duration - burstDuration - 0.05);
 
       const noiseFilter = ctx.createBiquadFilter();
       noiseFilter.type = "bandpass";
@@ -188,7 +201,8 @@ export class MalletVoice {
     }
 
     this.voiceGain.gain.setValueAtTime(0, now);
-    this.voiceGain.gain.linearRampToValueAtTime(1, now + Math.max(0.002, attack * 0.5));
+    this.attackEnd = now + Math.max(0.002, attack * 0.5);
+    this.voiceGain.gain.linearRampToValueAtTime(1, this.attackEnd);
 
     this.maxTail = Math.max(longestTail, 0.3);
     const stopAt = now + this.maxTail + 0.05;
@@ -199,26 +213,55 @@ export class MalletVoice {
         /* already stopped */
       }
     }
+    if (this.cleanupMode === "ended") {
+      if (this.oscillators.length) this.oscillators[0].onended = () => this.hardCleanup();
+      else this.hardCleanup();
+      return;
+    }
     const scheduleOffsetMs = Math.max(0, now - ctx.currentTime) * 1000;
     const cleanupDelay = Math.max(50, this.maxTail * 1000 + 80 + scheduleOffsetMs);
     this.cleanupTimer = window.setTimeout(() => this.hardCleanup(), cleanupDelay);
   }
 
+  /** When the voice will have finished sounding (its natural tail, or an earlier scheduled stop). */
+  get endTime(): number {
+    return Math.min(this.startedAt + this.maxTail + 0.05, this.stopTime + 0.42);
+  }
+
+  /** The hand-damp time this voice's patch implies (seconds). */
+  get chokeSeconds(): number {
+    return clamp(lerp(0.35, 0.04, this.damping01), 0.03, 0.4);
+  }
+
   /** Cuts the voice short (key released / voice stolen). If `natural` is false this is a
    * hand-damp style choke rather than the bar's own decay finishing. */
-  stop(choke: boolean): void {
-    if (this.stopped) return;
-    this.stopped = true;
+  stop(choke: boolean, when?: number, chokeOverride?: number): void {
     const now = this.ctx.currentTime;
+    // a stop scheduled for later (a damp at the note's end) may be brought forward by an earlier one
+    // (a steal); a stop at or after an existing one changes nothing
+    const at = Math.max(now, when ?? now);
+    if (this.stopped && at >= this.stopTime - 1e-6) return;
+    this.stopped = true;
     if (choke) {
-      const chokeTime = clamp(lerp(0.35, 0.04, this.damping01), 0.03, 0.4);
-      const current = this.voiceGain.gain.value;
-      this.voiceGain.gain.cancelScheduledValues(now);
-      this.voiceGain.gain.setValueAtTime(current, now);
-      this.voiceGain.gain.linearRampToValueAtTime(0, now + chokeTime);
-      const stopAt = now + chokeTime + 0.02;
-      window.clearTimeout(this.cleanupTimer);
-      this.cleanupTimer = window.setTimeout(() => this.hardCleanup(), (chokeTime + 0.08) * 1000);
+      const chokeTime = chokeOverride ?? clamp(lerp(0.35, 0.04, this.damping01), 0.03, 0.4);
+      const g = this.voiceGain.gain;
+      if (at <= now + 0.003 && when === undefined) {
+        const current = g.value;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(current, now);
+      } else {
+        // the voice's envelope at that moment: rising during the attack, then held at 1
+        const level = at <= this.startedAt ? 0 : at >= this.attackEnd ? 1 : (at - this.startedAt) / Math.max(1e-6, this.attackEnd - this.startedAt);
+        g.cancelScheduledValues(at);
+        g.setValueAtTime(level, at);
+      }
+      g.linearRampToValueAtTime(0, at + chokeTime);
+      this.stopTime = at;
+      const stopAt = at + chokeTime + 0.02;
+      if (this.cleanupMode === "timer") {
+        window.clearTimeout(this.cleanupTimer);
+        this.cleanupTimer = window.setTimeout(() => this.hardCleanup(), (at - now + chokeTime + 0.08) * 1000);
+      }
       for (const osc of this.oscillators) {
         try {
           osc.stop(stopAt);

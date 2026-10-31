@@ -121,3 +121,14 @@ describe("rng and context", () => {
     expect(scaleFamily("majorPent")).toBe("pentatonic");
   });
 });
+
+describe("spelling", () => {
+  it("modes are spelled by their parent major key", async () => {
+    const { pcName } = await import("../../src/theory/scales");
+    expect(pcName(10, 0, "mixolydian")).toBe("B♭"); // C Mixolydian: F major's B♭
+    expect(pcName(6, 2, "dorian")).toBe("F♯"); // D Dorian is C major … F♯ is outside, but sharps
+    expect(pcName(10, 5, "major")).toBe("B♭");
+    expect(pcName(6, 7, "major")).toBe("F♯");
+    expect(pcName(3, 0, "minor")).toBe("E♭");
+  });
+});

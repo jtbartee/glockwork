@@ -58,8 +58,17 @@ export function isMinorish(scale: ScaleId, custom?: number[]): boolean {
   return iv.includes(3) && !iv.includes(4);
 }
 
-/** Practical enharmonic spelling: flats for flat keys (F, B♭, E♭… / d, g, c… minor), sharps otherwise. */
+const MAJOR_IV = [0, 2, 4, 5, 7, 9, 11];
+
+/** Practical enharmonic spelling: flats for flat keys (F, B♭, E♭… / d, g, c… minor), sharps
+ *  otherwise. A seven-note mode is spelled by its parent major key (C Mixolydian borrows F major's
+ *  B♭; D Dorian is C major's), so its ♭7 is never written as a sharp. */
 export function prefersFlats(root: number, scale: ScaleId): boolean {
+  const iv = scale === "custom" ? [] : SCALES[scale].intervals;
+  if (iv.length === 7) {
+    const pcs = iv.map((i) => mod12(root + i));
+    for (let k = 0; k < 12; k++) if (MAJOR_IV.every((i) => pcs.includes(mod12(k + i)))) return FLAT_MAJOR.has(k) || (k === 0 && pcs.includes(10));
+  }
   return isMinorish(scale) ? FLAT_MINOR.has(root) : FLAT_MAJOR.has(root);
 }
 

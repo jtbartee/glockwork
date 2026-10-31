@@ -1,4 +1,4 @@
-import type { AppStore } from "../../state/store";
+import type { ControlHost } from "./host";
 import { h } from "../dom";
 
 export interface SegButtonsOptions {
@@ -15,7 +15,7 @@ export class SegButtons {
   private buttons: HTMLElement[];
   private value: string;
 
-  constructor(private store: AppStore, private opts: SegButtonsOptions) {
+  constructor(private store: ControlHost, private opts: SegButtonsOptions) {
     this.value = this.readValue();
     this.buttons = opts.options.map((o) =>
       h(

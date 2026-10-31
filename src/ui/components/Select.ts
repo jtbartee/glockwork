@@ -1,4 +1,4 @@
-import type { AppStore } from "../../state/store";
+import type { ControlHost } from "./host";
 import { h } from "../dom";
 
 export interface SelectOptions {
@@ -14,7 +14,7 @@ export class SelectControl {
   readonly el: HTMLElement;
   private select: HTMLSelectElement;
 
-  constructor(private store: AppStore, private opts: SelectOptions) {
+  constructor(private store: ControlHost, private opts: SelectOptions) {
     this.select = h(
       "select",
       { class: "select-control" },

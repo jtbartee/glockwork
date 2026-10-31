@@ -180,8 +180,21 @@ export class AppStore {
 
   // ---- generic dot-path param setter (also used by MIDI Learn) -----------
 
+  private delegates = new Map<string, { get: (path: string) => unknown; set: (path: string, value: number | boolean | string) => void }>();
+
+  /** Let another workspace own a path root (the ENSEMBLE workspace owns "ensemble.*"), so MIDI
+   * Learn mappings can drive its controls through the same mechanism. */
+  registerPathDelegate(root: string, d: { get: (path: string) => unknown; set: (path: string, value: number | boolean | string) => void }): void {
+    this.delegates.set(root, d);
+  }
+
   setByPath(path: string, value: number | boolean | string): void {
     const [root, ...rest] = path.split(".");
+    const delegate = this.delegates.get(root);
+    if (delegate) {
+      delegate.set(rest.join("."), value);
+      return;
+    }
     if (root === "engine") {
       const next = structuredCloneSafe(this.engine.getParams());
       setDeep(next, rest, value);
@@ -216,6 +229,8 @@ export class AppStore {
 
   getByPath(path: string): unknown {
     const [root, ...rest] = path.split(".");
+    const delegate = this.delegates.get(root);
+    if (delegate) return delegate.get(rest.join("."));
     const source =
       root === "engine"
         ? this.engine.getParams()
@@ -301,6 +316,8 @@ export class AppStore {
     window.addEventListener("keydown", (e) => {
       if (e.repeat) return;
       if (isTypingTarget(e.target)) return;
+      // shortcut chords (Ctrl/Cmd/Alt + key) belong to the editor, not to musical typing
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.code === OCTAVE_DOWN_KEY) {
         this.shiftComputerOctave(-1);
         return;
